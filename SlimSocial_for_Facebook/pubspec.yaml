@@ -31,7 +31,6 @@ dependencies:
   flutter_file_downloader: 2.0.0
   open_file_plus: 3.4.1
   native_flutter_proxy: 0.1.15
-  google_fonts: ^6.2.1 # Google Fonts
   flutter_animate: ^4.5.0  # For smooth animations
   dynamic_color: ^1.6.9    # For Material You dynamic colors
   flutter_native_splash: ^2.3.10  # For modern splash screen
