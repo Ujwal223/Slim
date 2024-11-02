@@ -21,11 +21,9 @@ import 'package:slimsocial_for_facebook/utils/utils.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
+
 class HomePage extends ConsumerStatefulWidget {
-  //String? initialUrl;
-
   const HomePage({super.key});
-
   @override
   ConsumerState<ConsumerStatefulWidget> createState() => _HomePageState();
 }
@@ -176,6 +174,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       fbWebViewProvider,
       (previous, next) async {
         final currentUrl = await _controller.currentUrl();
+        final colorScheme = Theme.of(context).colorScheme;
         if (currentUrl != null) {
           final currentUri = Uri.parse(currentUrl);
           if (currentUri.toString() == next.toString()) {
@@ -201,189 +200,238 @@ class _HomePageState extends ConsumerState<HomePage> {
         await _controller.loadRequest(next);
       },
     );
-
+ @override
+  Widget build(BuildContext context) {
+    // Get color scheme based on current theme
+    final colorScheme = Theme.of(context).colorScheme;
+    
     return Scaffold(
+      // Modern gradient app bar with frosted glass effect
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                isDarkMode
+                    ? colorScheme.primaryContainer.withOpacity(0.8)
+                    : colorScheme.primary.withOpacity(0.9),
+                isDarkMode
+                    ? colorScheme.primary.withOpacity(0.7)
+                    : colorScheme.primaryContainer.withOpacity(0.8),
+              ],
+            ),
+          ),
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+        ),
         leading: IconButton(
           onPressed: () {
-            //_controller?.loadUrl(PrefController.getHomePage());
             ref
                 .read(fbWebViewProvider.notifier)
                 .updateUrl(PrefController.getHomePage());
           },
-          icon: const Icon(Icons.home),
+          icon: Icon(
+            Icons.home_rounded,
+            color: colorScheme.onPrimary,
+          ),
         ),
         centerTitle: true,
         title: GestureDetector(
-          child: const Text('SlimSocial'),
           onTap: () => _controller.scrollTo(0, 0),
+          child: Text(
+            'SlimSocial',
+            style: TextStyle(
+              color: colorScheme.onPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 24,
+            ),
+          ),
         ),
-        backgroundColor: CustomCss.darkThemeCss.isEnabled()
-            ? FacebookColors.darkBlue
-            : FacebookColors.official,
-        elevation: 0,
         actions: [
-          /*  IconButton(
-            onPressed: () => _controller?.loadUrl(kMessengerUrl),
-            icon: const Icon(Icons.messenger_outlined),
-          ),*/
-          if (isScontentUrl)
+          if (isScontentUrl) ...[
             IconButton(
               onPressed: () async {
                 final url = await _controller.currentUrl();
                 if (url != null) {
-                  showToast("${"downloading".tr()}...");
+                  showModernToast(context, "downloading".tr());
                   final path = await downloadImage(url);
-                  if (path != null) {
-                    //showToast("Image saved to {}".tr(args: [path]));
-                    OpenFile.open(path);
-                  }
+                  if (path != null) OpenFile.open(path);
                 }
               },
-              icon: const Icon(Icons.save),
+              icon: Icon(
+                Icons.save_rounded,
+                color: colorScheme.onPrimary,
+              ),
             ),
-          if (isScontentUrl)
             IconButton(
               onPressed: () async {
                 final url = await _controller.currentUrl();
                 if (url != null) {
-                  print("${"sharing".tr()}...");
                   final path = await downloadImage(url);
                   if (path != null) Share.shareXFiles([XFile(path)]);
                 }
               },
-              icon: const Icon(Icons.ios_share_outlined),
+              icon: Icon(
+                Icons.share_rounded,
+                color: colorScheme.onPrimary,
+              ),
             ),
+          ],
           if (sp.getBool("enable_messenger") ?? true)
-            IconButton(
-              onPressed: () async {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const MessengerPage(),
-                  ),
-                );
-              },
-              icon: Image.asset('assets/icons/ic_messenger.png', height: 22),
-            ),
-          PopupMenuButton<String>(
-            onSelected: (item) async {
-              switch (item) {
-                case "share_url":
-                  final url = await _controller.currentUrl();
-                  if (url != null) Share.share(url);
-                  break;
-                case "refresh":
-                  _controller.reload();
-                  break;
-                case "settings":
-                  Navigator.of(context).pushNamed("/settings");
-                  break;
-                case "top":
-                  _controller.scrollTo(0, 0);
-                  break;
-                case "support":
-                  Navigator.push(
-                    context,
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    colorScheme.primaryContainer,
+                    colorScheme.secondary,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: IconButton(
+                onPressed: () async {
+                  Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) =>
-                          SettingsPage(productId: "donation_1"),
+                      builder: (context) => const MessengerPage(),
                     ),
                   );
-                  break;
-                case "reset":
-                  await _controller.clearCache();
-                  await _controller.clearLocalStorage();
-                  _controller = _initWebViewController();
-                  break;
-                default:
-                  print("Unknown menu item: $item");
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem<String>(
-                value: "top",
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.vertical_align_top),
-                  title: Text("top".tr().capitalize()),
-                ),
+                },
+                icon: Image.asset('assets/icons/ic_messenger.png',
+                    height: 22, color: colorScheme.onPrimary),
               ),
-              PopupMenuItem<String>(
-                value: "refresh",
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.refresh),
-                  title: Text("refresh".tr().capitalize()),
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: "share_url",
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.share),
-                  title: Text("share_url".tr().capitalize()),
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: "settings",
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.settings),
-                  title: Text("settings".tr().capitalize()),
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: "support",
-                child: ListTile(
-                  iconColor: Colors.red,
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.favorite),
-                  title: Text("support".tr().capitalize()),
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: "reset",
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.restore),
-                  title: Text("reset".tr().capitalize()),
-                ),
-              ),
-            ],
-          ),
+            ),
+          _buildModernPopupMenu(colorScheme),
         ],
       ),
-      body: WillPopScope(
-        onWillPop: () async {
-          if (await _controller.canGoBack()) {
-            _controller.goBack();
-
-            if (isScontentUrl) {
-              //gotta go back twice to leave scontent (facebook bug?)
-              _controller.goBack();
-            }
-            return false;
-          }
-          return true;
-        },
-        child: Stack(
-          alignment: AlignmentDirectional.bottomCenter,
-          children: [
-            WebViewWidget(
-              controller: _controller,
-            ),
-            if (isLoading)
-              const LinearProgressIndicator(
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(FacebookColors.official),
-                backgroundColor: Colors.transparent,
+      body: Stack(
+        alignment: AlignmentDirectional.bottomCenter,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  isDarkMode
+                      ? colorScheme.background
+                      : colorScheme.background.withOpacity(0.95),
+                  isDarkMode
+                      ? colorScheme.surface
+                      : colorScheme.surface.withOpacity(0.98),
+                ],
               ),
-          ],
+            ),
+            child: WebViewWidget(controller: _controller),
+          ),
+          if (isLoading)
+            LinearProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+              backgroundColor: Colors.transparent,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernPopupMenu(ColorScheme colorScheme) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        popupMenuTheme: PopupMenuThemeData(
+          elevation: 8,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+      child: PopupMenuButton<String>(
+        icon: Icon(
+          Icons.more_vert_rounded,
+          color: colorScheme.onPrimary,
+        ),
+        onSelected: (item) async {
+          switch (item) {
+            case "share_url":
+              final url = await _controller.currentUrl();
+              if (url != null) Share.share(url);
+              break;
+            case "refresh":
+              _controller.reload();
+              break;
+            case "settings":
+              Navigator.of(context).pushNamed("/settings");
+              break;
+            case "top":
+              _controller.scrollTo(0, 0);
+              break;
+            case "support":
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SettingsPage(productId: "donation_1"),
+                ),
+              );
+              break;
+            case "reset":
+              await _controller.clearCache();
+              await _controller.clearLocalStorage();
+              _controller = _initWebViewController();
+              break;
+          }
+        },
+        itemBuilder: (context) => [
+          _buildPopupMenuItem("top", Icons.vertical_align_top_rounded, "top"),
+          _buildPopupMenuItem("refresh", Icons.refresh_rounded, "refresh"),
+          _buildPopupMenuItem("share_url", Icons.share_rounded, "share_url"),
+          _buildPopupMenuItem("settings", Icons.settings_rounded, "settings"),
+          _buildPopupMenuItem("support", Icons.favorite_rounded, "support",
+              iconColor: Colors.red),
+          _buildPopupMenuItem("reset", Icons.restore_rounded, "reset"),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildPopupMenuItem(
+      String value, IconData icon, String textKey,
+      {Color? iconColor}) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(icon, color: iconColor),
+        title: Text(
+          textKey.tr().capitalize(),
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );
   }
+
+  void showModernToast(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        margin: EdgeInsets.all(8),
+      ),
+    );
+  }
+} 
 
   Future<void> injectCss() async {
     var cssList = "";
