@@ -35,18 +35,24 @@ jobs:
           fi
 
       - name: Clean Build
-        run: flutter clean
+        run: |
+          cd /workspaces/Slim/SlimSocial_for_Facebook # Change this to your actual project directory
+          flutter clean
 
       - name: Build Release APK
-        run: flutter build apk --release --flavor <YOUR_FLAVOR>
-        env:
+        run: |
+          cd /workspaces/Slim/SlimSocial_for_Facebook  # Change this to your actual project directory
+          flutter build apk --release
+          
           RELEASE_KEYSTORE: ./keystore.jks
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           RELEASE_KEYSTORE_ALIAS: ${{ secrets.KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: List APK files
-        run: ls -la build/app/outputs/flutter-apk/
+        run: |
+          cd /workspaces/Slim/SlimSocial_for_Facebook  # Change this to your actual project directory
+          ls -la build/app/outputs/flutter-apk/
 
       - name: Upload to GitHub Release
         uses: svenstaro/upload-release-action@v2
