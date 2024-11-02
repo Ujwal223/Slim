@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_jailbreak_detection/flutter_jailbreak_detection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -64,376 +66,172 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _paymentSubscription?.cancel();
     super.dispose();
   }
-
+  
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
     return Scaffold(
-      appBar: AppBar(title: Text('settings'.tr().capitalize())),
-      body: SettingsList(
-        sections: [
-          SettingsSection(
-            title: Text('SlimSocial'.tr()),
-            tiles: <SettingsTile>[
-              SettingsTile.navigation(
-                leading: const Icon(Icons.privacy_tip),
-                title: Text('privacy'.tr().capitalize()),
-                description: Text("disclaimer_privacy".tr()),
-              ),
+      appBar: AppBar(
+        title: Text(
+          'settings'.tr().capitalize(),
+          style: GoogleFonts.roboto(fontWeight: FontWeight.w500),
+        ),
+        centerTitle: true,
+        backgroundColor: colorScheme.surfaceVariant.withOpacity(0.9),
+        elevation: 0,
+      ),
+      body: ListView(
+        children: [
+          _buildSection(
+            'SlimSocial'.tr(),
+            [
+              _buildPrivacyTile(),
             ],
           ),
-          SettingsSection(
-            title: Text('Facebook'.tr()),
-            tiles: <SettingsTile>[
-              SettingsTile.switchTile(
-                onToggle: (value) {
-                  setState(() {
-                    sp.setBool("enable_messenger", value);
-                  });
-                },
-                initialValue: sp.getBool("enable_messenger") ?? true,
-                leading: const Icon(Icons.messenger),
-                title: Text('enable_messenger'.tr()),
-              ),
-              SettingsTile.switchTile(
-                onToggle: (value) {
-                  setState(() {
-                    sp.setBool("hide_ads", value);
-                  });
-                  ref.refresh(fbWebViewProvider);
-                },
-                initialValue: sp.getBool("hide_ads") ?? true,
-                leading: const Icon(Icons.hide_source),
-                title: Text('hide_ads'.tr()),
-              ),
-              SettingsTile.switchTile(
-                onToggle: (value) {
-                  setState(() {
-                    sp.setBool("recent_first", value);
-                  });
-                  ref
-                      .read(fbWebViewProvider.notifier)
-                      .updateUrl(PrefController.getHomePage());
-                },
-                initialValue: sp.getBool("recent_first"),
-                leading: const Icon(Icons.rss_feed),
-                title: Text('recent_first'.tr()),
-              ),
-              SettingsTile.switchTile(
-                onToggle: (value) {
-                  setState(() {
-                    sp.setBool("use_mbasic", value);
-                  });
-                  ref
-                      .read(fbWebViewProvider.notifier)
-                      .updateUrl(PrefController.getHomePage());
-                  Restart.restartApp();
-                },
-                initialValue: sp.getBool("use_mbasic") ?? false,
-                leading: const Icon(Icons.abc),
-                title: Text('use_mbasic'.tr()),
-                description: Text('use_mbasic_desc'.tr()),
-              ),
+          _buildSection(
+            'Facebook'.tr(),
+            [
+              _buildMessengerTile(),
+              _buildHideAdsTile(),
+              _buildRecentFirstTile(),
+              _buildMBasicTile(),
             ],
           ),
-          SettingsSection(
-            title: Text('permissions'.tr().capitalize()),
-            tiles: <SettingsTile>[
-              SettingsTile.switchTile(
-                onToggle: (value) async {
-                  const Permission permission = Permission.locationWhenInUse;
-
-                  //for gps I don't care about updating value, because the webview can block it anyway
-                  await handlePermission(value, permission);
-
-                  setState(() {
-                    sp.setBool("gps_permission", value);
-                  });
-                  if (value == false) {
-                    //restart so the weview is blocked
-                    showToast("rebooting".tr());
-                    Restart.restartApp();
-                  }
-                },
-                //fixme bug on sp, I shoudl use the permission handler .isgranted
-                initialValue: sp.getBool("gps_permission") ?? false,
-                leading: const Icon(Icons.gps_fixed),
-                title: Text('gps_permission'.tr()),
-              ),
-              SettingsTile.switchTile(
-                onToggle: (value) async {
-                  final oldVal = value == true;
-                  const permission = Permission.camera;
-
-                  //value is set based on the new value of granted
-                  value = await handlePermission(value, permission);
-
-                  if (oldVal != value) {
-                    setState(() {
-                      sp.setBool("camera_permission", value);
-                    });
-                    ref.refresh(fbWebViewProvider);
-                  }
-                },
-                //fixme bug on sp, I shoudl use the permission handler .isgranted
-                initialValue: sp.getBool("camera_permission") ?? false,
-                leading: const Icon(Icons.camera_alt),
-                title: Text('camera_permission'.tr()),
-              ),
-              SettingsTile.switchTile(
-                onToggle: (value) async {
-                  final oldVal = value == true;
-                  const permission = Permission.photos;
-
-                  //value is set based on the new value of granted
-                  value = await handlePermission(value, permission);
-
-                  if (oldVal != value) {
-                    setState(() {
-                      sp.setBool("photo_permission", value);
-                    });
-                    ref.refresh(fbWebViewProvider);
-                  }
-                },
-                //fixme bug on sp, I shoudl use the permission handler .isgranted
-                initialValue: sp.getBool("photo_permission") ?? false,
-                leading: const Icon(Icons.photo_camera_back_outlined),
-                title: Text('photo_permission'.tr()),
-              ),
-            ],
-          ),
-          SettingsSection(
-            title: Text('style'.tr().capitalize()),
-            tiles: <SettingsTile>[
-              SettingsTile.switchTile(
-                onToggle: (value) {
-                  setState(() {
-                    sp.setBool(CustomCss.darkThemeCss.key, value);
-                  });
-                  //set dark theme
-
-                  final newTheme = value ? ThemeMode.dark : ThemeMode.light;
-                  SlimSocialApp.of(context).changeTheme(newTheme);
-                  ref.refresh(fbWebViewProvider);
-                },
-                initialValue: CustomCss.darkThemeCss.isEnabled(),
-                title: Text(CustomCss.darkThemeCss.key.tr()),
-                leading: const Icon(Icons.format_paint),
-              ),
-              SettingsTile.switchTile(
-                onToggle: (value) {
-                  setState(() {
-                    sp.setBool(CustomCss.fixedBarCss.key, value);
-                  });
-                  ref.refresh(fbWebViewProvider);
-                },
-                initialValue: CustomCss.fixedBarCss.isEnabled(),
-                leading: const Icon(Icons.vertical_align_top),
-                title: Text(CustomCss.fixedBarCss.key.tr()),
-              ),
-              SettingsTile.switchTile(
-                onToggle: (value) {
-                  setState(() {
-                    sp.setBool(CustomCss.hideStoriesCss.key, value);
-                  });
-                  ref.refresh(fbWebViewProvider);
-                },
-                initialValue: CustomCss.hideStoriesCss.isEnabled(),
-                title: Text(CustomCss.hideStoriesCss.key.tr()),
-                leading: const Icon(Icons.hide_image),
-              ),
-              SettingsTile.switchTile(
-                onToggle: (value) {
-                  setState(() {
-                    sp.setBool(CustomCss.centerTextPostsCss.key, value);
-                  });
-                  ref.refresh(fbWebViewProvider);
-                },
-                initialValue: CustomCss.centerTextPostsCss.isEnabled(),
-                title: Text(CustomCss.centerTextPostsCss.key.tr()),
-                leading: const Icon(Icons.format_align_center),
-              ),
-              SettingsTile.switchTile(
-                onToggle: (value) {
-                  setState(() {
-                    sp.setBool(CustomCss.addSpaceBetweenPostsCss.key, value);
-                  });
-                  ref.refresh(fbWebViewProvider);
-                },
-                initialValue: CustomCss.addSpaceBetweenPostsCss.isEnabled(),
-                title: Text(CustomCss.addSpaceBetweenPostsCss.key.tr()),
-                leading: const Icon(Icons.format_line_spacing),
-              ),
-            ],
-          ),
-          SettingsSection(
-            title: Text('advanced'.tr().capitalize()),
-            tiles: <SettingsTile>[
-              SettingsTile.navigation(
-                leading: const Icon(Icons.person),
-                title: Text('custom_useragent'.tr()),
-                trailing: Visibility(
-                  visible: sp.getBool("custom_useragent_enabled") ?? false,
-                  child: const Icon(Icons.check_circle),
-                ),
-                onPressed: (context) async {
-                  await showTextInputDialog(
-                    spKey: "custom_useragent",
-                    hint: PrefController.getUserAgent(),
-                  );
-                  setState(() {});
-                },
-              ),
-              SettingsTile.navigation(
-                leading: const Icon(Icons.css),
-                title: Text('custom_js'.tr()),
-                trailing: Visibility(
-                  visible: sp.getBool("custom_js_enabled") ?? false,
-                  child: const Icon(Icons.check_circle),
-                ),
-                onPressed: (context) async {
-                  await showTextInputDialog(
-                    spKey: "custom_js",
-                    hint: CustomJs.exampleJs,
-                  );
-                  setState(() {});
-                },
-              ),
-              SettingsTile.navigation(
-                leading: const Icon(Icons.javascript_sharp),
-                title: Text('custom_css'.tr()),
-                trailing: Visibility(
-                  visible: sp.getBool("custom_css_enabled") ?? false,
-                  child: const Icon(Icons.check_circle),
-                ),
-                onPressed: (context) async {
-                  await showTextInputDialog(
-                    spKey: "custom_css",
-                    hint: '._5rgt._5msi { text-align: center;}',
-                  );
-                  setState(() {});
-                },
-              ),
-              if (isDev)
-                SettingsTile.navigation(
-                  enabled: !sp.getString("custom_css").isNullOrEmpty() ||
-                      !sp.getString("custom_js").isNullOrEmpty() ||
-                      !sp.getString("custom_useragent").isNullOrEmpty(),
-                  leading: const Icon(Icons.send_time_extension),
-                  title: Text('send_to_dev'.tr()),
-                  description: Text('send_to_dev_desc'.tr()),
-                  onPressed: (context) => showSendCodeToDev(),
-                ),
-              SettingsTile.navigation(
-                leading: const Icon(Icons.private_connectivity_outlined),
-                title: Text('custom_proxy'.tr()),
-                trailing: Visibility(
-                  visible: sp.getBool("custom_proxy_enabled") ?? false,
-                  child: const Icon(Icons.check_circle),
-                ),
-                onPressed: (context) async {
-                  const spKey = "custom_proxy";
-                  const spKeyEnabled = "${spKey}_enabled";
-                  const spKeyIp = "${spKey}_ip";
-                  const spKeyPort = "${spKey}_port";
-
-                  final ip = sp.getString(spKeyIp);
-                  final port = sp.getString(spKeyPort);
-
-                  await showProxyDialog();
-
-                  final newIp = sp.getString(spKeyIp);
-                  final newPort = sp.getString(spKeyPort);
-                  final enabled = sp.getBool(spKeyEnabled) ?? false;
-
-                  if ((ip != newIp || port != newPort) && enabled) {
-                    Restart.restartApp();
-                  }
-
-                  setState(() {});
-                },
-              ),
-            ],
-          ),
-          SettingsSection(
-            title: Text('contribute'.tr().capitalize()),
-            tiles: <SettingsTile>[
-              SettingsTile.navigation(
-                leading: const Icon(Icons.share),
-                title: Text('shareapp'.tr()),
-                onPressed: (BuildContext context) async {
-                  Share.share(kPlayStoreUrl);
-                },
-              ),
-              SettingsTile.navigation(
-                leading: const Icon(Icons.star),
-                title: Text('review5stars_v1'.tr()),
-                onPressed: (BuildContext context) async {
-                  final inAppReview = InAppReview.instance;
-
-                  if (await inAppReview.isAvailable()) {
-                    inAppReview.requestReview();
-                  }
-                },
-              ),
-              SettingsTile.navigation(
-                leading: const Icon(Icons.coffee),
-                title: Text('buy_coffee'.tr()),
-                onPressed: (BuildContext context) async {
-                  buildPaymentWidget("donation_2".tr());
-                },
-              ),
-              SettingsTile.navigation(
-                leading: const Icon(Icons.local_pizza_outlined),
-                title: Text('buy_pizza'.tr()),
-                onPressed: (BuildContext context) async {
-                  buildPaymentWidget("donation_3".tr());
-                },
-              ),
-              /*  SettingsTile.navigation(
-                leading: const Icon(Icons.stars),
-                title: Text('become_hero'.tr()),
-                description: Text('become_hero_desc_v1'.tr()),
-                onPressed: (BuildContext context) async {
-                  buildPaymentWidget("donation_4");
-                },
-              ), */
-            ],
-          ),
-          SettingsSection(
-            title: Text('the_project'.tr().capitalize()),
-            tiles: <SettingsTile>[
-              /*  SettingsTile.navigation(
-                leading: const Icon(Icons.email),
-                title: Text('contactdev'.tr()),
-                onPressed: (BuildContext context) async {
-                  await buildPaymentWidget("donation_2".tr());
-                  launchInAppUrl(context, kTwitterProfileUrl);
-                },
-              ), */
-              SettingsTile.navigation(
-                leading: const Icon(Icons.bug_report),
-                title: Text('report_issue'.tr()),
-                onPressed: (BuildContext context) =>
-                    launchUrl(Uri.parse(kGithubIssuesUrl)),
-              ),
-              SettingsTile.navigation(
-                leading: const Icon(Icons.code),
-                title: const Text('GitHub'),
-                description: Text('source_code'.tr()),
-                onPressed: (BuildContext context) =>
-                    launchInAppUrl(context, kGithubProjectUrl),
-              ),
-              SettingsTile.navigation(
-                leading: const Icon(Icons.perm_device_info),
-                title: Text('version'.tr().capitalize()),
-                description: Text(packageInfo.version),
-              ),
-            ],
-          ),
-        ],
+        ].animate(interval: 50.ms).fadeIn(duration: 200.ms).slideX(),
       ),
     );
   }
+
+  Widget _buildSection(String title, List<Widget> tiles) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
+        Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              width: 1,
+            ),
+          ),
+          child: Column(children: tiles),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPrivacyTile() {
+    return ListTile(
+      leading: Icon(
+        Icons.privacy_tip,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: Text(
+        'privacy'.tr().capitalize(),
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: Text("disclaimer_privacy".tr()),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ).animate()
+      .fadeIn(delay: 100.ms)
+      .slideX(begin: 0.2, curve: Curves.easeOutQuad);
+  }
+
+  Widget _buildMessengerTile() {
+    return SwitchListTile(
+      secondary: Icon(
+        Icons.messenger,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: Text(
+        'enable_messenger'.tr(),
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      value: sp.getBool("enable_messenger") ?? true,
+      onChanged: (value) {
+        setState(() {
+          sp.setBool("enable_messenger", value);
+        });
+      },
+    );
+  }
+
+  Widget _buildHideAdsTile() {
+    return SwitchListTile(
+      secondary: Icon(
+        Icons.hide_source,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: Text(
+        'hide_ads'.tr(),
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      value: sp.getBool("hide_ads") ?? true,
+      onChanged: (value) {
+        setState(() {
+          sp.setBool("hide_ads", value);
+        });
+        ref.refresh(fbWebViewProvider);
+      },
+    );
+  }
+
+  Widget _buildRecentFirstTile() {
+    return SwitchListTile(
+      secondary: Icon(
+        Icons.rss_feed,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: Text(
+        'recent_first'.tr(),
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      value: sp.getBool("recent_first") ?? false,
+      onChanged: (value) {
+        setState(() {
+          sp.setBool("recent_first", value);
+        });
+        ref.read(fbWebViewProvider.notifier).updateUrl(PrefController.getHomePage());
+      },
+    );
+  }
+
+  Widget _buildMBasicTile() {
+    return SwitchListTile(
+      secondary: Icon(
+        Icons.abc,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: Text(
+        'use_mbasic'.tr(),
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: Text('use_mbasic_desc'.tr()),
+      value: sp.getBool("use_mbasic") ?? false,
+      onChanged: (value) {
+        setState(() {
+          sp.setBool("use_mbasic", value);
+        });
+        ref.read(fbWebViewProvider.notifier).updateUrl(PrefController.getHomePage());
+        Restart.restartApp();
+      },
+    );
+  }
+}
 
   Future<bool> handlePermission(bool isTurningOn, Permission permission) async {
     final status = await permission.status;
