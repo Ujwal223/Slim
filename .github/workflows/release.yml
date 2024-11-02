@@ -1,0 +1,64 @@
+name: Release APK and Upload
+
+on:
+  workflow_dispatch:  # Enables manual triggering
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'  # Use Java 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          validate-wrappers: true
+          gradle-home-cache-cleanup: true
+
+      - name: Set up signing key
+        run: |
+          if [ ! -z "${{ secrets.KEY_STORE }}" ]; then
+            echo "${{ secrets.KEY_STORE }}" | base64 --decode > ./keystore.jks
+          else
+            echo "KEY_STORE secret is not set. Exiting..."
+            exit 1
+          fi
+
+      - name: Debug Key Store Presence
+        run: |
+          if [ -f "./keystore.jks" ]; then
+            echo "Keystore is present."
+          else
+            echo "Keystore is missing."
+            exit 1
+          fi
+
+      - name: Clean Build
+        run: ./gradlew clean
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease -PuseExternalSigning
+        env:
+          RELEASE_KEYSTORE: ./keystore.jks
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          RELEASE_KEYSTORE_ALIAS: ${{ secrets.KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: List APK files
+        run: ls -la app/build/outputs/apk/release
+
+      - name: Upload to GitHub Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: app/build/outputs/apk/release/*.apk
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          overwrite: true
+          file_glob: true
