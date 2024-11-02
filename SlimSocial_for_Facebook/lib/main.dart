@@ -1,7 +1,10 @@
 import 'package:app_links/app_links.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:native_flutter_proxy/custom_proxy.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -23,22 +26,24 @@ final messengerWebViewProvider =
 
 late PackageInfo packageInfo;
 
+// Theme mode provider
+final themeProvider = StateProvider<ThemeMode>((ref) {
+  return CustomCss.darkThemeCss.isEnabled() ? ThemeMode.dark : ThemeMode.light;
+});
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
   packageInfo = await PackageInfo.fromPlatform();
   sp = await SharedPreferences.getInstance();
+  
   final container = ProviderContainer();
 
   if (sp.getBool("custom_proxy_enabled") ?? false) _setupProxy();
 
-  //library to handle app links (link that open the app)
   final _appLinks = AppLinks();
-
-  // Subscribe to all events when app is started.
   _appLinks.uriLinkStream.listen((uri) {
     print("Received uri: $uri");
-    //run the app with the uri
     container.read(fbWebViewProvider.notifier).updateUrl(uri.toString());
   });
 
@@ -114,59 +119,134 @@ void _setupProxy() {
   }
 }
 
-class SlimSocialApp extends StatefulWidget {
+
+class SlimSocialApp extends ConsumerStatefulWidget {
   const SlimSocialApp({super.key});
 
   @override
-  State<SlimSocialApp> createState() => _SlimSocialAppState();
-
-  /// InheritedWidget style accessor to our State object.
-  static _SlimSocialAppState of(BuildContext context) =>
-      context.findAncestorStateOfType<_SlimSocialAppState>()!;
+  ConsumerState<SlimSocialApp> createState() => _SlimSocialAppState();
 }
 
-class _SlimSocialAppState extends State<SlimSocialApp> {
-  _SlimSocialAppState() {
-    _themeMode =
-        CustomCss.darkThemeCss.isEnabled() ? ThemeMode.dark : ThemeMode.light;
-  }
-  late ThemeMode _themeMode;
+class _SlimSocialAppState extends ConsumerState<SlimSocialApp> {
+  final _defaultLightColorScheme = ColorScheme.fromSeed(
+    seedColor: const Color(0xFF1877F2), // Facebook blue
+    brightness: Brightness.light,
+  );
 
-  // This widget is the root of your application.
+  final _defaultDarkColorScheme = ColorScheme.fromSeed(
+    seedColor: const Color(0xFF1877F2),
+    brightness: Brightness.dark,
+  );
+
   @override
   Widget build(BuildContext context) {
-    //TODO change app title dynamically
+    final themeMode = ref.watch(themeProvider);
 
-    return MaterialApp(
-      title: 'SlimSocial for Facebook',
-      theme: ThemeData(
-        useMaterial3: false,
-        colorScheme: lightColorScheme,
-        textTheme: GoogleFonts.robotoTextTheme(
-          ThemeData(brightness: Brightness.light).textTheme,
-        ),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: false,
-        colorScheme: darkColorScheme,
-        textTheme: GoogleFonts.robotoTextTheme(
-          ThemeData(brightness: Brightness.dark).textTheme,
-        ),
-      ),
-      themeMode: _themeMode,
-      home: const HomePage(),
-      routes: {
-        "/settings": (context) => SettingsPage(),
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) {
+        ColorScheme lightScheme;
+        ColorScheme darkScheme;
+
+        if (lightDynamic != null && darkDynamic != null) {
+          // Use dynamic color if supported by the system
+          lightScheme = lightDynamic.harmonized();
+          darkScheme = darkDynamic.harmonized();
+        } else {
+          // Otherwise, use our default schemes
+          lightScheme = _defaultLightColorScheme;
+          darkScheme = _defaultDarkColorScheme;
+        }
+
+        return MaterialApp(
+          title: 'SlimSocial for Facebook',
+          debugShowCheckedModeBanner: false,
+          
+          // Light theme
+          theme: FlexThemeData.light(
+            scheme: FlexScheme.blue,
+            colorScheme: lightScheme,
+            useMaterial3: true,
+            fontFamily: GoogleFonts.roboto().fontFamily,
+            subThemesData: const FlexSubThemesData(
+              interactionEffects: true,
+              blendOnLevel: 20,
+              blendOnColors: true,
+              elevatedButtonRadius: 12,
+              textButtonRadius: 8,
+              outlinedButtonRadius: 12,
+              inputDecoratorRadius: 8,
+              cardRadius: 16,
+              popupMenuRadius: 12,
+              dialogRadius: 20,
+              timePickerElementRadius: 12,
+              appBarBackgroundSchemeColor: SchemeColor.surfaceVariant,
+            ),
+          ),
+          
+          // Dark theme
+          darkTheme: FlexThemeData.dark(
+            scheme: FlexScheme.blue,
+            colorScheme: darkScheme,
+            useMaterial3: true,
+            fontFamily: GoogleFonts.roboto().fontFamily,
+            subThemesData: const FlexSubThemesData(
+              interactionEffects: true,
+              blendOnLevel: 20,
+              tintLevel: 12,
+              elevatedButtonRadius: 12,
+              textButtonRadius: 8,
+              outlinedButtonRadius: 12,
+              inputDecoratorRadius: 8,
+              cardRadius: 16,
+              popupMenuRadius: 12,
+              dialogRadius: 20,
+              timePickerElementRadius: 12,
+              appBarBackgroundSchemeColor: SchemeColor.surfaceVariant,
+            ),
+          ),
+          
+          themeMode: themeMode,
+          
+          // Route animations
+          builder: (context, child) {
+            return Navigator(
+              onGenerateRoute: (settings) {
+                return MaterialPageRoute(
+                  builder: (context) => child!.animate().fadeIn(
+                    duration: const Duration(milliseconds: 300),
+                  ),
+                );
+              },
+            );
+          },
+          
+          home: const HomePage(),
+          routes: {
+            "/settings": (context) => SettingsPage(),
+          },
+          
+          localizationsDelegates: context.localizationDelegates,
+          supportedLocales: context.supportedLocales,
+          locale: context.locale,
+        );
       },
-      localizationsDelegates: context.localizationDelegates,
-      supportedLocales: context.supportedLocales,
-      locale: context.locale,
     );
   }
+}
 
-  void changeTheme(ThemeMode themeMode) {
-    setState(() {
-      _themeMode = themeMode;
-    });
-  }
+// Modern toast message
+void showModernToast(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(8),
+      dismissDirection: DismissDirection.horizontal,
+      animation: CurvedAnimation(
+        parent: const AlwaysStoppedAnimation(1),
+        curve: Curves.easeOutCirc,
+      ),
+    ),
+  );
 }
