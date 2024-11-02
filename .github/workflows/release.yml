@@ -11,17 +11,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up JDK
-        uses: actions/setup-java@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
-          distribution: 'zulu'
-          java-version: '17'  # Use Java 17
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          validate-wrappers: true
-          gradle-home-cache-cleanup: true
+          flutter-version: '3.10.5'  # Specify your Flutter version here
 
       - name: Set up signing key
         run: |
@@ -42,10 +35,10 @@ jobs:
           fi
 
       - name: Clean Build
-        run: ./gradlew clean
+        run: flutter clean
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease -PuseExternalSigning
+        run: flutter build apk --release --flavor <YOUR_FLAVOR>
         env:
           RELEASE_KEYSTORE: ./keystore.jks
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
@@ -53,12 +46,12 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: List APK files
-        run: ls -la app/build/outputs/apk/release
+        run: ls -la build/app/outputs/flutter-apk/
 
       - name: Upload to GitHub Release
         uses: svenstaro/upload-release-action@v2
         with:
-          file: app/build/outputs/apk/release/*.apk
+          file: build/app/outputs/flutter-apk/*.apk
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           overwrite: true
           file_glob: true
