@@ -36,14 +36,14 @@ jobs:
 
       - name: Clean Build
         run: |
-          cd /workspaces/Slim/SlimSocial_for_Facebook # Change this to your actual project directory
+          cd /workspaces/Slim/SlimSocial_for_Facebook  # Change this to your actual project directory
           flutter clean
 
       - name: Build Release APK
         run: |
           cd /workspaces/Slim/SlimSocial_for_Facebook  # Change this to your actual project directory
           flutter build apk --release
-          
+        env:  # Set the environment variables here
           RELEASE_KEYSTORE: ./keystore.jks
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
           RELEASE_KEYSTORE_ALIAS: ${{ secrets.KEY_ALIAS }}
